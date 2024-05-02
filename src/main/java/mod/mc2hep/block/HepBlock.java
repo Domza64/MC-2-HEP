@@ -1,11 +1,13 @@
 package mod.mc2hep.block;
 
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
+import mod.mc2hep.MC2HEP;
+import net.minecraft.block.*;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 public class HepBlock extends Block {
     // TODO - Add blockstate, like LIT, to make sure it only sends signal when to stop sending power when
@@ -20,14 +22,30 @@ public class HepBlock extends Block {
     @Override
     protected void neighborUpdate(BlockState state, World world, BlockPos pos, Block sourceBlock, BlockPos sourcePos, boolean notify) {
         if (!world.isClient) {
-            if (world.isReceivingRedstonePower(pos)) {
-                LOGGER.info("Transferring redstone energy to real world");
-                // Posalji signal da upali
+            try {
+                posaljiKomandu(world.isReceivingRedstonePower(pos));
+            } catch (IOException | InterruptedException e) {
+                throw new RuntimeException(e);
             }
-            else {
-                LOGGER.info("Stopping redstone energy transfer to real world");
-                // Posalji signal da ugasi
-            }
+        }
+    }
+
+    private void posaljiKomandu(boolean turnOn) throws IOException, InterruptedException {
+
+        if (turnOn && MC2HEP.ledOn == 0) {
+            LOGGER.info("Transferring redstone energy to real world");
+            MC2HEP.ledOn = 1;
+            MC2HEP.sp.getOutputStream().write('1');
+            MC2HEP.sp.getOutputStream().flush();
+        }
+        else if (!turnOn && MC2HEP.ledOn == 1) {
+            LOGGER.info("Stopping redstone energy transfer to real world");
+            MC2HEP.ledOn = 0;
+            MC2HEP.sp.getOutputStream().write('0');
+            MC2HEP.sp.getOutputStream().flush();
+        }
+        else {
+            LOGGER.info("WFT");
         }
     }
 }
